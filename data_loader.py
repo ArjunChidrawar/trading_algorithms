@@ -32,6 +32,6 @@ df['SMA20'] = SMA20['vals']
 df['SMA50'] = SMA50['vals']
 df['live_pos'] = 100000
 
-df.to_csv('data_for_strategy.csv')
+df.to_csv('data_for_SMA.csv')
 
 

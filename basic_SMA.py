@@ -3,7 +3,7 @@ import numpy as np
 import datetime
 import matplotlib.pyplot as plt
 
-data = pd.read_csv('data_for_strategy.csv')
+data = pd.read_csv('data_for_SMA.csv')
 
 # Defined Rules for Strategy:
 # 1. Buy = SMA20 goes from less than SMA 50 to greater
