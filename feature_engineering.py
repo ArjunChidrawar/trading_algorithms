@@ -34,12 +34,40 @@ def bollinger_bands(data):
     Upper_Band = data['Middle Band'] + (2*data['rolling_std_dev'])
     Lower_Band = data['Middle Band'] - (2*data['rolling_std_dev'])
     return Upper_Band, Lower_Band
+
+#Computing Moving Average Convergence/Divergence (Good for analyzing larger price trends)
+def compute_MACD(data):
+    df = pd.DataFrame()
+    #First compute MACD line (12 day EMA - 26 day EMA)
+    df['EMA12'] = data['Adj Close'].ewm(span = 12, adjust = False).mean()
+    df['EMA26'] = data['Adj Close'].ewm(span = 26, adjust = False).mean()
+    df['MACD_line'] = df['EMA12'] - df['EMA26']
+    MACD_line = df['MACD_line']
+
+    #Compute signal line (9 day EMA)
+    df['signal_line'] = df['MACD_line'].ewm(span = 9, adjust = False).mean()
+    signal_line = df['signal_line']
+
+    #Adding the optional histogram for better visualization
+    histogram = df['signal_line'] - df['MACD_line']
+
+    return MACD_line, signal_line, histogram
+
+#IN PROGRESS
+def compute_ADX(data, period = 14):
+    df = pd.DataFrame()
+    df['high-low'] = data['high'] - data['low']
+    df['high-prevClose'] = abs(data['high'] - data['Close'].shift(1))
+    df['low-prevClose'] = abs(data['low'] - data['Close'].shift(1))
+
+    #Calculating True Range: max(high-low, |high-prev_close|, |low-prev_close|)
+    df['TR'] = df[['High-Low', 'High-PrevClose', 'Low-PrevClose']].max(axis=1)
     
+
 # def stochastic_oscillator(data):
 # def compute_beta(data):
 # def compute_vroc(data):
 # def compute_volatility(data):
-# def compute_MACD(data):
 # def compute_DMI(data):
 
 def main():
@@ -58,6 +86,11 @@ def main():
     fdata['lower_band'] = bollinger_bds[1]
     fdata['middle_band'] = sma['SMA20']
 
+    #MACD
+    inds = compute_MACD(data)
+    fdata['MACD_line'] = inds[0]
+    fdata['signal_line'] = inds[1]
+    
 
     fdata.to_csv('test.csv')
     
