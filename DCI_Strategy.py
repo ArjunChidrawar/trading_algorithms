@@ -2,14 +2,16 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import matplotlib.pyplot as plt
+plt.style.use('fivethirtyeight')
 
-data = pd.read_csv('data_for_SMA.csv')
+#Inspiration: https://levelup.gitconnected.com/an-algo-trading-strategy-which-made-8-371-a-python-case-study-58ed12a492dc
 
-# Defined Rules for Strategy:
-# 1. Buy = SMA20 goes from less than SMA 50 to greater
-# 2. Sell = SMA20 goes from greater than SMA 50 to less
-# 3. open position = our current money value divided by the price of the stock (gives us the number of shares we have invested)
-# flag is used to tell if we went from above to below or below to above
+#Rules:
+#Buy = current high > 50 week high
+#Sell = current low < 40 week low
+
+data = pd.read_csv('DCI_strategy_data.csv')
+
 def buy_sell(data):
     flag = 0
     buy = []
@@ -17,12 +19,14 @@ def buy_sell(data):
     open_pos = []
     funds = [10000]*len(data)
     last_funds = 10000
-    end_of_year_bal = []
+    end_of_year_bal = [last_funds]
 
-    for i in range(len(data)):
-        curr_price = data['price'][i]
-        #Case 1: SMA20 > SMA50
-        if data['SMA20'][i] > data['SMA50'][i]:
+    for i in range(0, len(data)):
+        curr_high = data['high'][i]
+        curr_low = data['low'][i]
+        curr_price = data['price'][i]        
+        #Case 1: curr_high > upper_channel = Buy
+        if curr_high == data['upper_channel'][i]:
             #Case 1A: below to above
             if flag == 0:
                 flag = 1
@@ -38,8 +42,8 @@ def buy_sell(data):
                 last_funds = last_pos*curr_price
                 funds[i] = last_funds
                 open_pos.append(last_pos)
-        #Case 2: SMA20 < SMA50
-        elif data['SMA20'][i] <= data['SMA50'][i]:
+        #Case 2: curr_low < lower_channel = SelL
+        elif curr_low == data['lower_channel'][i]:
             #Case 2A: above to below
             if flag == 1:
                 flag = 0
@@ -47,6 +51,7 @@ def buy_sell(data):
                 sell.append(curr_price)
                 last_funds = last_pos*curr_price
                 funds[i] = last_funds
+                # print(funds[i])
                 open_pos.append(0)
             #Case 2B: below and still below
             else:
@@ -54,12 +59,18 @@ def buy_sell(data):
                 sell.append(np.NaN)
                 funds[i] = last_funds
                 open_pos.append(0)
-        #In the first 49 days before we have both SMA's, we have a base case
+        #In the first 49 days before we have both channels, we have a base case, (Also when either case is not hit)
         else:
             buy.append(np.NaN)
             sell.append(np.NaN)
-            open_pos.append(0)
-        #For calculating YoY revenues
+            if flag == 1:
+                last_funds = last_pos*curr_price
+                funds[i] = last_funds
+                open_pos.append(last_pos)
+            else:
+                funds[i] = last_funds
+                open_pos.append(0)
+        
         date_format = '%Y-%m-%d %H:%M:%S%z'
         if i+1 != len(data):
             date_obj = datetime.strptime(data['Date'][i], date_format)
@@ -75,29 +86,29 @@ def main():
     data['open_position'] = indicators[2]
     data['funds_track'] = indicators[3]
     bals = indicators[4]
-    data.to_csv('test.csv')
+    
     #Outcome value for funds:
-    print('Original funds: ' + str(data['funds_track'][49]) + '\n')
+    print('Original funds: ' + str(data['funds_track'][0]) + '\n')
     print('Outcome funds: ' + str(data['funds_track'][len(data)-1]) + '\n')
-    print('profit = ' + str(data['funds_track'][len(data)-1] - data['funds_track'][49]))
-
+    print('profit = ' + str(data['funds_track'][len(data)-1] - data['funds_track'][0]))
+    
     #Calculating yoy %change
     res = []
-    for i in range(len(bals)-1):
-        currYearprof_loss = ((bals[i+1] - bals[i])/bals[i]) * 100
+    for i in range(1, len(bals)):
+        currYearprof_loss = ((bals[i] - bals[i-1])/bals[i-1]) * 100
         res.append(currYearprof_loss)
     print('YoY pct_change = '  + str(sum(res)/len(res)))
 
     # Visualize Data and strategy to buy and sell
     plt.figure(figsize = (15, 8))
     plt.plot(data['price'], label = 'MSFT', linewidth = 1)
-    plt.plot(data['SMA20'], label = 'SMA20', linewidth = 0.5)
-    plt.plot(data['SMA50'], label = 'SMA50', linewidth = 0.5)
-   
+    plt.plot(data['upper_channel'], label = 'Upper Channel', linewidth = 0.5)
+    plt.plot(data['lower_channel'], label = 'Lower Channel', linewidth = 0.5)
+
     plt.scatter(data.index, data['buy_signal'], label= 'Buy', marker = '^', color = 'g')
     plt.scatter(data.index, data['sell_signal'], label= 'Sell', marker = 'v', color = 'r')
     plt.title('MSFT' + ' Buy-Sell Signals')
-    plt.xlabel('Stock History over 10 years')
+    plt.xlabel('Stock History over 30 years')
     plt.ylabel('Adjusted Close price ($)')
     plt.legend(loc = 'upper left')
     plt.show()
